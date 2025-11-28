@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Promptuary",
+  "version": "1.0.0",
+  "description": "A sophisticated, context-aware prompt library and execution engine.",
+  "action": {
+    "default_popup": "index.html"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "clipboardRead",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background.ts"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content.ts"
+      ]
+    }
+  ]
+}
