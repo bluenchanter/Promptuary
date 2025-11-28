@@ -7,6 +7,7 @@ interface PromptState {
     isLoading: boolean;
     loadPrompts: () => Promise<void>;
     addPrompt: (prompt: Prompt) => Promise<void>;
+    importPrompts: (prompts: Prompt[]) => Promise<void>;
     deletePrompt: (id: string) => Promise<void>;
 }
 
@@ -26,6 +27,14 @@ export const usePromptStore = create<PromptState>((set) => ({
     addPrompt: async (prompt) => {
         await StorageService.addPrompt(prompt);
         set((state) => ({ prompts: [...state.prompts, prompt] }));
+    },
+    importPrompts: async (newPrompts) => {
+        // Avoid duplicates based on title/content similarity if needed, 
+        // but for now just append.
+        const currentPrompts = await StorageService.getPrompts();
+        const updatedPrompts = [...currentPrompts, ...newPrompts];
+        await StorageService.savePrompts(updatedPrompts);
+        set({ prompts: updatedPrompts });
     },
     deletePrompt: async (id) => {
         await StorageService.deletePrompt(id);

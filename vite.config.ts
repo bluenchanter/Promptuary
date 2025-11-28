@@ -14,6 +14,14 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    crx({ manifest }),
+    crx({
+      manifest: {
+        ...manifest,
+        background: {
+          ...manifest.background,
+          type: 'module',
+        },
+      },
+    }),
   ],
 })
