@@ -1,3 +1,4 @@
+```
 import { useEffect, useState } from 'react';
 import { Command } from 'cmdk';
 import { Search, Copy, Plus, Terminal, Download, ArrowLeft, Loader2, Check } from 'lucide-react';
@@ -14,7 +15,7 @@ export const CommandPalette = () => {
     const [search, setSearch] = useState('');
     const [view, setView] = useState<View>('main');
     const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
+    
     // Import state
     const [fetchedPrompts, setFetchedPrompts] = useState<Prompt[]>([]);
     const [isLoadingImport, setIsLoadingImport] = useState(false);
@@ -158,8 +159,9 @@ export const CommandPalette = () => {
     return (
         <div className="h-full w-full bg-background flex items-start justify-center p-4 relative">
             {feedback && (
-                <div className={`absolute top-2 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-lg text-sm font-medium animate-in fade-in slide-in-from-top-2 ${feedback.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                    }`}>
+                <div className={`absolute top - 2 left - 1 / 2 transform - translate - x - 1 / 2 z - 50 px - 4 py - 2 rounded - md shadow - lg text - sm font - medium animate -in fade -in slide -in -from - top - 2 ${
+    feedback.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+} `}>
                     {feedback.message}
                 </div>
             )}
@@ -169,8 +171,8 @@ export const CommandPalette = () => {
                     {view === 'main' ? (
                         <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                     ) : (
-                        <ArrowLeft
-                            className="mr-2 h-4 w-4 shrink-0 cursor-pointer hover:opacity-70"
+                        <ArrowLeft 
+                            className="mr-2 h-4 w-4 shrink-0 cursor-pointer hover:opacity-70" 
                             onClick={() => setView('main')}
                         />
                     )}
@@ -188,12 +190,12 @@ export const CommandPalette = () => {
                         </div>
                     )}
                 </div>
-
+                
                 {view === 'create_prompt' ? (
                     <div className="p-4 flex flex-col gap-4">
                         <div>
                             <label className="text-sm font-medium mb-1 block">Title</label>
-                            <input
+                            <input 
                                 className="w-full border rounded-md p-2 text-sm bg-transparent"
                                 placeholder="e.g., Summarize Email"
                                 value={newPromptTitle}
@@ -202,14 +204,14 @@ export const CommandPalette = () => {
                         </div>
                         <div>
                             <label className="text-sm font-medium mb-1 block">Content</label>
-                            <textarea
+                            <textarea 
                                 className="w-full border rounded-md p-2 text-sm bg-transparent h-32 resize-none"
                                 placeholder="Use {{selection}} for selected text, {{url}} for current URL."
                                 value={newPromptContent}
                                 onChange={(e) => setNewPromptContent(e.target.value)}
                             />
                         </div>
-                        <button
+                        <button 
                             className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-medium transition-colors"
                             onClick={handleCreatePrompt}
                         >
@@ -223,7 +225,7 @@ export const CommandPalette = () => {
                         {view === 'main' ? (
                             <>
                                 {domain && (
-                                    <Command.Group heading={`Context: ${domain}`}>
+                                    <Command.Group heading={`Context: ${ domain } `}>
                                         {filteredPrompts.map((prompt) => (
                                             <Command.Item
                                                 key={prompt.id}
@@ -313,3 +315,4 @@ export const CommandPalette = () => {
         </div>
     );
 };
+```
