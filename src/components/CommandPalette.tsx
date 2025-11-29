@@ -3,6 +3,7 @@ import { Command } from 'cmdk';
 import { Search, Copy, Plus, Download, ArrowLeft, Loader2, Check, Trash2 } from 'lucide-react';
 import { usePromptStore } from '../store/usePromptStore';
 import { PromptEngine } from '../lib/PromptEngine';
+import { StorageService } from '../lib/storage';
 import type { Prompt } from '../lib/storage';
 
 type View = 'main' | 'github_import' | 'create_prompt';
@@ -31,13 +32,13 @@ export const CommandPalette = () => {
         }
     }, [feedback]);
 
-    // Seed demo prompts ONCE - persist this check across popup sessions
+    // Seed demo prompts ONCE on initial extension install only
     useEffect(() => {
         const seedDemoPrompts = async () => {
-            // Check if we've already seeded using chrome.storage
             const SEEDED_KEY = 'promptuary_demo_seeded';
-            let hasSeeded = false;
 
+            // Check if we've already seeded using chrome.storage
+            let hasSeeded = false;
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                 const result = await chrome.storage.local.get(SEEDED_KEY);
                 hasSeeded = result[SEEDED_KEY] === true;
@@ -45,13 +46,15 @@ export const CommandPalette = () => {
                 hasSeeded = localStorage.getItem(SEEDED_KEY) === 'true';
             }
 
-            // If already seeded, don't seed again
+            // If already seeded, never seed again
             if (hasSeeded) return;
 
-            // Check if demo prompts already exist in the current prompts list
-            const hasDemoPrompts = prompts.some(p => p.id.startsWith('demo-'));
-            if (hasDemoPrompts) {
-                // Mark as seeded if demo prompts exist
+            // Load current prompts directly from storage (not from state)
+            const currentPrompts = await StorageService.getPrompts();
+
+            // If there are already prompts, mark as seeded and don't add demos
+            if (currentPrompts.length > 0) {
+                // Mark as seeded to prevent future seeding
                 if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                     await chrome.storage.local.set({ [SEEDED_KEY]: true });
                 } else {
@@ -60,10 +63,7 @@ export const CommandPalette = () => {
                 return;
             }
 
-            // If prompts exist but no demo prompts, user must have cleared demos - don't re-seed
-            if (prompts.length > 0) return;
-
-            // Seed the demo prompts
+            // Only seed if: (1) never seeded before AND (2) no prompts exist
             await addPrompt({
                 id: 'demo-1',
                 title: 'Summarize Page',
@@ -81,7 +81,7 @@ export const CommandPalette = () => {
                 created_at: Date.now(),
             });
 
-            // Mark as seeded
+            // Mark as seeded permanently
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                 await chrome.storage.local.set({ [SEEDED_KEY]: true });
             } else {
@@ -89,8 +89,9 @@ export const CommandPalette = () => {
             }
         };
 
+        // Run only once on component mount
         seedDemoPrompts();
-    }, [prompts, addPrompt]);
+    }, []); // Empty dependency array - runs only once
 
     const handleSelect = async (promptId: string) => {
         console.log('Prompt selected:', promptId);
@@ -198,13 +199,7 @@ export const CommandPalette = () => {
     const handleClearAll = async () => {
         if (window.confirm('Are you sure you want to delete all prompts? This cannot be undone.')) {
             await clearAllPrompts();
-            // Reset the seeded flag so demo prompts can be re-seeded if needed
-            const SEEDED_KEY = 'promptuary_demo_seeded';
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                await chrome.storage.local.set({ [SEEDED_KEY]: false });
-            } else {
-                localStorage.setItem(SEEDED_KEY, 'false');
-            }
+            // Keep the seeded flag as true - user intentionally cleared, don't re-seed
             setFeedback({ message: 'All prompts cleared!', type: 'success' });
         }
     };
