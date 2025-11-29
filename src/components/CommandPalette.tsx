@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Command } from 'cmdk';
 import { Search, Copy, Plus, Download, ArrowLeft, Loader2, Check, Trash2 } from 'lucide-react';
 import { usePromptStore } from '../store/usePromptStore';
@@ -31,34 +31,65 @@ export const CommandPalette = () => {
         }
     }, [feedback]);
 
-    // Seed ONCE - check if demo prompts already exist
-    const hasSeededRef = useRef(false);
+    // Seed demo prompts ONCE - persist this check across popup sessions
     useEffect(() => {
-        if (hasSeededRef.current) return;
-        if (prompts.length > 0) return;
+        const seedDemoPrompts = async () => {
+            // Check if we've already seeded using chrome.storage
+            const SEEDED_KEY = 'promptuary_demo_seeded';
+            let hasSeeded = false;
 
-        // Check if any demo prompts exist
-        const hasDemoPrompts = prompts.some(p => p.id.startsWith('demo-'));
-        if (hasDemoPrompts) return;
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                const result = await chrome.storage.local.get(SEEDED_KEY);
+                hasSeeded = result[SEEDED_KEY] === true;
+            } else {
+                hasSeeded = localStorage.getItem(SEEDED_KEY) === 'true';
+            }
 
-        hasSeededRef.current = true;
+            // If already seeded, don't seed again
+            if (hasSeeded) return;
 
-        addPrompt({
-            id: 'demo-1',
-            title: 'Summarize Page',
-            content: 'Please summarize the following content from {{url}}:\n\n{{selection}}',
-            tags: ['general', 'summary'],
-            target_domains: [],
-            created_at: Date.now(),
-        });
-        addPrompt({
-            id: 'demo-2',
-            title: 'Explain Like I\'m 5',
-            content: 'Explain this concept in simple terms:\n\n{{selection}}',
-            tags: ['general', 'learning'],
-            target_domains: [],
-            created_at: Date.now(),
-        });
+            // Check if demo prompts already exist in the current prompts list
+            const hasDemoPrompts = prompts.some(p => p.id.startsWith('demo-'));
+            if (hasDemoPrompts) {
+                // Mark as seeded if demo prompts exist
+                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                    await chrome.storage.local.set({ [SEEDED_KEY]: true });
+                } else {
+                    localStorage.setItem(SEEDED_KEY, 'true');
+                }
+                return;
+            }
+
+            // If prompts exist but no demo prompts, user must have cleared demos - don't re-seed
+            if (prompts.length > 0) return;
+
+            // Seed the demo prompts
+            await addPrompt({
+                id: 'demo-1',
+                title: 'Summarize Page',
+                content: 'Please summarize the following content from {{url}}:\n\n{{selection}}',
+                tags: ['general', 'summary'],
+                target_domains: [],
+                created_at: Date.now(),
+            });
+            await addPrompt({
+                id: 'demo-2',
+                title: 'Explain Like I\'m 5',
+                content: 'Explain this concept in simple terms:\n\n{{selection}}',
+                tags: ['general', 'learning'],
+                target_domains: [],
+                created_at: Date.now(),
+            });
+
+            // Mark as seeded
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                await chrome.storage.local.set({ [SEEDED_KEY]: true });
+            } else {
+                localStorage.setItem(SEEDED_KEY, 'true');
+            }
+        };
+
+        seedDemoPrompts();
     }, [prompts, addPrompt]);
 
     const handleSelect = async (promptId: string) => {
@@ -167,7 +198,13 @@ export const CommandPalette = () => {
     const handleClearAll = async () => {
         if (window.confirm('Are you sure you want to delete all prompts? This cannot be undone.')) {
             await clearAllPrompts();
-            hasSeededRef.current = false;
+            // Reset the seeded flag so demo prompts can be re-seeded if needed
+            const SEEDED_KEY = 'promptuary_demo_seeded';
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                await chrome.storage.local.set({ [SEEDED_KEY]: false });
+            } else {
+                localStorage.setItem(SEEDED_KEY, 'false');
+            }
             setFeedback({ message: 'All prompts cleared!', type: 'success' });
         }
     };

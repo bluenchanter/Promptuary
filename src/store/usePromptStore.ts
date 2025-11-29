@@ -9,6 +9,7 @@ interface PromptState {
     addPrompt: (prompt: Prompt) => Promise<void>;
     importPrompts: (prompts: Prompt[]) => Promise<void>;
     deletePrompt: (id: string) => Promise<void>;
+    clearAllPrompts: () => Promise<void>;
 }
 
 export const usePromptStore = create<PromptState>((set) => ({
@@ -39,5 +40,9 @@ export const usePromptStore = create<PromptState>((set) => ({
     deletePrompt: async (id) => {
         await StorageService.deletePrompt(id);
         set((state) => ({ prompts: state.prompts.filter((p) => p.id !== id) }));
+    },
+    clearAllPrompts: async () => {
+        await StorageService.savePrompts([]);
+        set({ prompts: [] });
     },
 }));
