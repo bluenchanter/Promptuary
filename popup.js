@@ -1,6 +1,7 @@
 // State
 let prompts = [];
 let currentView = 'main';
+let editingPromptId = null;
 
 // DOM Elements
 const app = document.getElementById('app');
@@ -49,6 +50,14 @@ const StorageService = {
         const updated = [prompt, ...current];
         await this.savePrompts(updated);
     },
+    async updatePrompt(updatedPrompt) {
+        const current = await this.getPrompts();
+        const index = current.findIndex(p => p.id === updatedPrompt.id);
+        if (index !== -1) {
+            current[index] = updatedPrompt;
+            await this.savePrompts(current);
+        }
+    },
     async clearPrompts() {
         await this.savePrompts([]);
     },
@@ -63,6 +72,17 @@ const StorageService = {
         return new Promise((resolve) => {
             chrome.storage.local.set({ seeded: true }, resolve);
         });
+    },
+    // Draft for context menu
+    async getDraft() {
+        return new Promise((resolve) => {
+            chrome.storage.local.get(['draft_selection'], (result) => {
+                resolve(result.draft_selection || null);
+            });
+        });
+    },
+    async clearDraft() {
+        chrome.storage.local.remove(['draft_selection']);
     }
 };
 
@@ -128,12 +148,13 @@ function switchView(view) {
         viewMain.classList.remove('hidden');
         searchInput.focus();
         renderPromptList();
+        editingPromptId = null;
     } else {
         searchContainer.classList.add('hidden');
         headerActions.classList.remove('hidden');
 
         if (view === 'create') {
-            headerTitle.textContent = 'Create New Prompt';
+            headerTitle.textContent = editingPromptId ? 'Edit Prompt' : 'Create New Prompt';
             viewCreate.classList.remove('hidden');
             viewCreate.classList.add('animate-slide-up');
             inputTitle.focus();
@@ -159,13 +180,42 @@ function renderPromptList() {
     filtered.forEach(prompt => {
         const el = document.createElement('div');
         el.className = 'list-item';
-        el.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+
+        // Content
+        const content = document.createElement('div');
+        content.className = 'list-item-content';
+        content.style.display = 'flex';
+        content.style.alignItems = 'center';
+        content.style.width = '100%';
+        content.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <span>${prompt.title}</span>
         `;
+
+        // Edit Button
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-edit-item';
+        editBtn.title = 'Edit Prompt';
+        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            handleEditPrompt(prompt);
+        };
+
+        el.appendChild(content);
+        el.appendChild(editBtn);
+
         el.onclick = () => handlePromptSelect(prompt);
         promptList.appendChild(el);
     });
+}
+
+function handleEditPrompt(prompt) {
+    editingPromptId = prompt.id;
+    inputTitle.value = prompt.title;
+    inputContent.value = prompt.content;
+    switchView('create');
 }
 
 async function handlePromptSelect(prompt) {
@@ -189,19 +239,29 @@ async function handleSavePrompt() {
         return;
     }
 
-    const newPrompt = {
-        id: Date.now().toString(),
-        title,
-        content,
-        created_at: Date.now()
-    };
+    if (editingPromptId) {
+        const updatedPrompt = {
+            id: editingPromptId,
+            title,
+            content,
+            created_at: Date.now()
+        };
+        await StorageService.updatePrompt(updatedPrompt);
+        showToast('Prompt updated!');
+    } else {
+        const newPrompt = {
+            id: Date.now().toString(),
+            title,
+            content,
+            created_at: Date.now()
+        };
+        await StorageService.addPrompt(newPrompt);
+        showToast('Prompt saved!');
+    }
 
-    await StorageService.addPrompt(newPrompt);
-    showToast('Prompt saved!');
-
-    // Reset form
     inputTitle.value = '';
     inputContent.value = '';
+    editingPromptId = null;
 
     switchView('main');
 }
@@ -214,10 +274,8 @@ async function loadGitHubPrompts() {
         const response = await fetch('https://raw.githubusercontent.com/f/awesome-chatgpt-prompts/main/prompts.csv');
         const text = await response.text();
 
-        // Simple CSV parser
-        const lines = text.split('\n').slice(1); // Skip header
+        const lines = text.split('\n').slice(1);
         const fetchedPrompts = lines.map(line => {
-            // Handle CSV quotes roughly
             const parts = line.split('","');
             if (parts.length >= 2) {
                 return {
@@ -232,7 +290,7 @@ async function loadGitHubPrompts() {
 
         fetchedPrompts.forEach(p => {
             const el = document.createElement('div');
-            el.className = 'list-item';
+            el.className = 'list-item import-item';
             el.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 <span>${p.title}</span>
@@ -261,31 +319,58 @@ async function loadGitHubPrompts() {
 // --- Initialization ---
 
 async function init() {
-    // Check seeding
-    const seeded = await StorageService.isSeeded();
-    prompts = await StorageService.getPrompts();
+    try {
+        // Check for context menu draft
+        const draft = await StorageService.getDraft();
+        if (draft) {
+            inputTitle.value = "New Draft";
+            inputContent.value = draft;
+            switchView('create');
+            await StorageService.clearDraft();
 
-    if (!seeded && prompts.length === 0) {
-        const demos = [
-            {
-                id: 'demo-1',
-                title: 'Summarize Page',
-                content: 'Please summarize the following content from {{url}}:\n\n{{selection}}',
-                created_at: Date.now()
-            },
-            {
-                id: 'demo-2',
-                title: 'Explain Like I\'m 5',
-                content: 'Explain this concept in simple terms:\n\n{{selection}}',
-                created_at: Date.now()
-            }
-        ];
-        await StorageService.savePrompts(demos);
-        await StorageService.setSeeded();
-        prompts = demos;
+            // Load prompts in background
+            prompts = await StorageService.getPrompts();
+            return;
+        }
+
+        // Check seeding
+        const seeded = await StorageService.isSeeded();
+        prompts = await StorageService.getPrompts();
+
+        if (!seeded && prompts.length === 0) {
+            const demos = [
+                {
+                    id: 'demo-1',
+                    title: 'Summarize Page',
+                    content: 'Please summarize the following content from {{url}}:\n\n{{selection}}',
+                    created_at: Date.now()
+                },
+                {
+                    id: 'demo-2',
+                    title: 'Explain Like I\'m 5',
+                    content: 'Explain this concept in simple terms:\n\n{{selection}}',
+                    created_at: Date.now()
+                }
+            ];
+            await StorageService.savePrompts(demos);
+            await StorageService.setSeeded();
+            prompts = demos;
+        }
+
+        renderPromptList();
+
+        // Ensure main view is visible if not in draft mode
+        if (currentView === 'main') {
+            switchView('main');
+        }
+    } catch (error) {
+        console.error("Initialization failed:", error);
+        // Fallback to show something
+        prompts = [];
+        renderPromptList();
+        switchView('main');
+        showToast("Failed to load prompts", "error");
     }
-
-    renderPromptList();
 }
 
 // --- Event Listeners ---
@@ -307,7 +392,6 @@ btnClearAll.addEventListener('click', async () => {
     }
 });
 
-// Chips
 document.querySelectorAll('.chip').forEach(btn => {
     btn.addEventListener('click', () => {
         const text = btn.dataset.insert;
@@ -320,5 +404,4 @@ document.querySelectorAll('.chip').forEach(btn => {
     });
 });
 
-// Start
 init();
