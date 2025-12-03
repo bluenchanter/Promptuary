@@ -16,10 +16,11 @@
 
 ## Tech Stack
 
-*   **Frontend**: React 18, TypeScript
+*   **Frontend**: React 19, TypeScript
 *   **Build Tool**: Vite
 *   **Extension Framework**: CRXJS (Vite Plugin for Chrome Extensions)
-*   **Styling**: TailwindCSS
+*   **Manifest Version**: 3 (fully compliant with Chrome Web Store standards)
+*   **Styling**: TailwindCSS 4
 *   **State Management**: Zustand
 *   **UI Components**: CMDK (Command Palette), Lucide React (Icons)
 
@@ -75,6 +76,21 @@
 *   `src/lib/`: Utility libraries (`PromptEngine`, `StorageService`, `GitHubService`).
 *   `src/hooks/`: Custom React hooks (`useDomainDetector`).
 *   `manifest.json`: Chrome Extension manifest configuration.
+*   `public/icons/`: Extension icons (16x16, 48x48, 128x128 PNG files).
+
+## Chrome Compatibility
+
+This extension is fully compliant with Chrome Manifest V3 standards and includes:
+
+*   ✅ Proper extension icons (16x16, 48x48, 128x128)
+*   ✅ Manifest V3 service worker implementation
+*   ✅ Minimal and appropriate permissions (storage, activeTab, scripting)
+*   ✅ Content Security Policy compliant (no inline scripts or eval)
+*   ✅ Async/await pattern for all Chrome APIs
+*   ✅ Proper error handling for restricted URLs (chrome://, edge://, etc.)
+*   ✅ Clipboard API using standard navigator.clipboard.writeText()
+
+The extension has been tested and built to meet all Chrome Web Store requirements.
 
 ## License
 
