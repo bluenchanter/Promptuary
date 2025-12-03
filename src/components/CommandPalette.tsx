@@ -91,6 +91,7 @@ export const CommandPalette = () => {
 
         // Run only once on component mount
         seedDemoPrompts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Empty dependency array - runs only once
 
     const handleSelect = async (promptId: string) => {
